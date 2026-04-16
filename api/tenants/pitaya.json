@@ -1,0 +1,10 @@
+{
+  "name": "Pitaya Schedly",
+  "whatsappNumber": "5216441942690",
+  "businessHours": {
+    "start": "09:00",
+    "end": "18:00",
+    "days": [1, 2, 3, 4, 5]
+  },
+  "calendarId": "24e022487cfcf9d4ef849b9480557ecbf076d0bbf21393b11feebc0c4f4fdf2a@group.calendar.google.com"
+}

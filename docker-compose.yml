@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # CitaIA Backend API
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: appointment-api
+    restart: always
+    ports:
+      - "3013:3013"
+    environment:
+      - NODE_ENV=production
+      - PORT=3013
+      - GOOGLE_APPLICATION_CREDENTIALS=/usr/src/app/service-account.json
+    volumes:
+      - ./api/service-account.json:/usr/src/app/service-account.json:ro
+      - ./api/tenants:/usr/src/app/tenants
