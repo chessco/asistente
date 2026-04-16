@@ -12,6 +12,12 @@ node_modules/
 */node_modules/
 jspm_packages/
 
+# Data and Keys
+npm/
+*.sqlite
+api/service-account.json
+service-account.json
+
 # TypeScript cache
 *.tsbuildinfo
 
@@ -38,6 +44,12 @@ build/
 .env.production.local
 api/.env
 web/.env
+
+# Backups and Logs
+api/config_backup.json
+api/output.txt
+api/output_conflict.txt
+*.log
 
 # Sensitive Keys
 api/service-account.json
