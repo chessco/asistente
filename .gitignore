@@ -45,6 +45,7 @@ build/
 **/.env
 **/.env.production
 **/.env.deploy
+**/.env.deploy.example
 
 # Backups and Logs
 api/config_backup.json
