@@ -27,11 +27,11 @@ const allowedOrigins = [
 ];
 
 if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
+  allowedOrigins.push(process.env.FRONTEND_URL.trim());
 }
 
 if (process.env.CORS_ORIGINS) {
-  const origins = process.env.CORS_ORIGINS.split(',').map(o => o.trim());
+  const origins = process.env.CORS_ORIGINS.split(',').map(o => o.trim().replace(/\r/g, ''));
   allowedOrigins.push(...origins);
 }
 
@@ -44,8 +44,8 @@ app.use(cors({
     if (isLocal || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.warn(`Blocked by CORS: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      logger.warn(`Blocked by CORS: ${origin} | Allowed: ${JSON.stringify(allowedOrigins)}`);
+      callback(null, false); // Send false instead of throwing a generic node error so it doesn't 500
     }
   },
   credentials: true
