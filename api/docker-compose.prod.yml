@@ -1,0 +1,17 @@
+services:
+  api:
+    image: appointment-api-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: appointment-api-prod
+    restart: always
+    ports:
+      - "3013:3013"
+    env_file: .env.production
+    networks:
+      - pitaya_net
+
+networks:
+  pitaya_net:
+    external: true

@@ -1,8 +1,22 @@
 version: '3.8'
 
 services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: citaia-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: citaia
+    ports:
+      - "3306:3306"
+    volumes:
+      - citaia_db_data:/var/lib/mysql
+
   # CitaIA Backend API
   api:
+    image: appointment-api
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -13,7 +27,13 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3013
+      - DATABASE_URL=mysql://root:rootpassword@db:3306/citaia
       - GOOGLE_APPLICATION_CREDENTIALS=/usr/src/app/service-account.json
+    depends_on:
+      - db
     volumes:
       - ./api/service-account.json:/usr/src/app/service-account.json:ro
       - ./api/tenants:/usr/src/app/tenants
+
+volumes:
+  citaia_db_data:

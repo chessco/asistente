@@ -18,20 +18,40 @@ class CalendarService {
   private auth;
 
   constructor() {
+    this.auth = this.createAuth();
+    this.calendar = google.calendar({ version: 'v3', auth: this.auth });
+  }
+
+  /**
+   * Creates a Google Auth instance.
+   * Uses provided credentials or falls back to environment variables.
+   */
+  private createAuth(credentials?: { clientEmail?: string, privateKey?: string }) {
     const SCOPES = ['https://www.googleapis.com/auth/calendar'];
     
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+    const email = credentials?.clientEmail || process.env.GOOGLE_CLIENT_EMAIL;
+    let privateKey = credentials?.privateKey || process.env.GOOGLE_PRIVATE_KEY;
+    
     if (privateKey) {
       privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
     }
 
-    this.auth = new google.auth.JWT({
-      email: process.env.GOOGLE_CLIENT_EMAIL,
+    return new google.auth.JWT({
+      email: email,
       key: privateKey,
       scopes: SCOPES
     });
+  }
 
-    this.calendar = google.calendar({ version: 'v3', auth: this.auth });
+  /**
+   * Helper to get a calendar instance for a specific tenant.
+   */
+  private getCalendarForTenant(credentials?: { clientEmail?: string, privateKey?: string }) {
+    if (!credentials?.clientEmail || !credentials?.privateKey) {
+      return this.calendar;
+    }
+    const auth = this.createAuth(credentials);
+    return google.calendar({ version: 'v3', auth: auth });
   }
 
   /**
@@ -65,11 +85,12 @@ class CalendarService {
    * Checks if a given time slot is already occupied.
    * Returns true if the slot is AVAILABLE, false if it is BLOCKED.
    */
-  async isSlotAvailable(dateTimeStr: string, calendarId: string = 'primary'): Promise<boolean> {
+  async isSlotAvailable(dateTimeStr: string, calendarId: string = 'primary', credentials?: any): Promise<boolean> {
     const startTime = this.parseDate(dateTimeStr);
     const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+    const calendar = this.getCalendarForTenant(credentials);
 
-    const response = await this.calendar.events.list({
+    const response = await calendar.events.list({
       calendarId: calendarId,
       timeMin: startTime.toISOString(),
       timeMax: endTime.toISOString(),
@@ -83,12 +104,13 @@ class CalendarService {
   /**
    * Creates an event in Google Calendar.
    */
-  async createEvent(calendarId: string, name: string, service: string, dateTimeStr: string) {
+  async createEvent(calendarId: string, name: string, service: string, dateTimeStr: string, credentials?: any) {
     try {
       const startTime = this.parseDate(dateTimeStr);
       const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+      const calendar = this.getCalendarForTenant(credentials);
 
-      const response = await this.calendar.events.insert({
+      const response = await calendar.events.insert({
         calendarId: calendarId || 'primary',
         requestBody: {
           summary: `CitaIA: ${service} - ${name}`,
@@ -108,9 +130,10 @@ class CalendarService {
   /**
    * List upcoming events for a specific calendar.
    */
-  async listUpcomingEvents(calendarId: string, maxResults: number = 20) {
+  async listUpcomingEvents(calendarId: string, maxResults: number = 20, credentials?: any) {
     try {
-      const response = await this.calendar.events.list({
+      const calendar = this.getCalendarForTenant(credentials);
+      const response = await calendar.events.list({
         calendarId: calendarId || 'primary',
         timeMin: new Date().toISOString(),
         maxResults: maxResults,
@@ -127,10 +150,10 @@ class CalendarService {
   /**
    * Finds available slot gaps.
    */
-  async getAvailableSlots(calendarId: string): Promise<Slot[]> {
+  async getAvailableSlots(calendarId: string, credentials?: any): Promise<Slot[]> {
     try {
       const now = new Date();
-      const events = await this.listUpcomingEvents(calendarId, 50);
+      const events = await this.listUpcomingEvents(calendarId, 50, credentials);
       const slots: Slot[] = [];
       const daysToScan = 2;
 

@@ -6,6 +6,7 @@ import path from 'path';
 import morgan from 'morgan';
 import logger from './logger.js';
 import { calendarService } from './calendar.service.js';
+import prisma from './prisma-client.js';
 
 dotenv.config();
 
@@ -29,9 +30,13 @@ if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
+if (process.env.CORS_ORIGINS) {
+  const origins = process.env.CORS_ORIGINS.split(',').map(o => o.trim());
+  allowedOrigins.push(...origins);
+}
+
 app.use(cors({
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Better CORS for development: allow any localhost/127.0.0.1
     const isLocal = !origin || 
                    origin.includes('localhost') || 
                    origin.includes('127.0.0.1');
@@ -49,34 +54,75 @@ app.use(cors({
 const sessions = new Map<string, any>();
 const TENANTS_DIR = path.join(process.cwd(), 'tenants');
 
-const getConfig = (tenantId: string) => {
-  const defaults = {
-    name: tenantId.charAt(0).toUpperCase() + tenantId.slice(1), // Default name from ID
-    businessHours: { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] },
-    whatsappNumber: process.env.WHATSAPP_NUMBER || '1234567890',
-    calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary'
-  };
-
+/**
+ * Migration: One-time sync from JSON files to MySQL
+ */
+async function migrateJsonToDb() {
   try {
-    const configPath = path.join(TENANTS_DIR, `${tenantId}.json`);
-    if (fs.existsSync(configPath)) {
-      const saved = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      // Merge with defaults to ensure all fields are present
+    const count = await prisma.tenant.count();
+    if (count > 0) return; // Already migrated or seeded
+
+    if (!fs.existsSync(TENANTS_DIR)) return;
+
+    logger.info("Starting JSON to MySQL migration...");
+    const files = fs.readdirSync(TENANTS_DIR).filter(f => f.endsWith('.json'));
+
+    for (const file of files) {
+      const id = file.replace('.json', '');
+      const data = JSON.parse(fs.readFileSync(path.join(TENANTS_DIR, file), 'utf-8'));
+      
+      await prisma.tenant.upsert({
+        where: { id },
+        update: {},
+        create: {
+          id,
+          name: data.name || id,
+          whatsappNumber: data.whatsappNumber || '1234567890',
+          calendarId: data.calendarId || 'primary',
+          businessHours: data.businessHours || { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] },
+          googleClientEmail: data.googleClientEmail,
+          googlePrivateKey: data.googlePrivateKey
+        }
+      });
+      logger.info(`Migrated tenant: ${id}`);
+    }
+    logger.info("Migration completed successfully.");
+  } catch (error) {
+    logger.error("Migration failed", { error });
+  }
+}
+
+/**
+ * Fetch tenant configuration from DB
+ */
+const getConfig = async (tenantId: string) => {
+  try {
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (tenant) {
       return {
-        ...defaults,
-        ...saved,
-        businessHours: { ...defaults.businessHours, ...(saved.businessHours || {}) }
+        ...tenant,
+        businessHours: (tenant.businessHours as any) || { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] }
       };
     }
   } catch (e) {
     logger.error(`Error reading config for tenant ${tenantId}`, { error: e });
   }
-  return defaults;
+
+  // Fallback defaults
+  return {
+    id: tenantId,
+    name: tenantId.charAt(0).toUpperCase() + tenantId.slice(1),
+    businessHours: { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] },
+    whatsappNumber: process.env.WHATSAPP_NUMBER || '1234567890',
+    calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+    googleClientEmail: null,
+    googlePrivateKey: null
+  };
 };
 
 // Public config for frontend
-app.get('/api/:tenantId/config', (req, res) => {
-  const config = getConfig(req.params.tenantId);
+app.get('/api/:tenantId/config', async (req, res) => {
+  const config = await getConfig(req.params.tenantId);
   res.json({ 
     name: config.name,
     whatsappNumber: config.whatsappNumber 
@@ -84,8 +130,7 @@ app.get('/api/:tenantId/config', (req, res) => {
 });
 
 // Helper to check business hours
-const isWithinBusinessHours = (date: Date, tenantId: string) => {
-  const config = getConfig(tenantId);
+const isWithinBusinessHours = (date: Date, config: any) => {
   const day = date.getDay();
   const time = date.getHours() * 60 + date.getMinutes();
   
@@ -99,25 +144,17 @@ const isWithinBusinessHours = (date: Date, tenantId: string) => {
   return bh.days.includes(day) && time >= startMinutes && time <= endMinutes;
 };
 
-const appointments: any[] = [];
-
 // Config Endpoints
-app.get('/api/:tenantId/admin/config', (req, res) => {
-  res.json(getConfig(req.params.tenantId));
+app.get('/api/:tenantId/admin/config', async (req, res) => {
+  res.json(await getConfig(req.params.tenantId));
 });
 
 // SUPER ADMIN: List all tenants
-app.get('/api/admin/tenants', (req, res) => {
+app.get('/api/admin/tenants', async (req, res) => {
   try {
-    if (!fs.existsSync(TENANTS_DIR)) return res.json([]);
-    const files = fs.readdirSync(TENANTS_DIR);
-    const tenants = files
-      .filter(f => f.endsWith('.json'))
-      .map(f => {
-        const id = f.replace('.json', '');
-        const config = getConfig(id);
-        return { id, name: config.name };
-      });
+    const tenants = await prisma.tenant.findMany({
+      select: { id: true, name: true }
+    });
     res.json(tenants);
   } catch (error) {
     res.status(500).json({ error: 'Failed to list tenants' });
@@ -125,57 +162,72 @@ app.get('/api/admin/tenants', (req, res) => {
 });
 
 // SUPER ADMIN: Create new tenant
-app.post('/api/admin/tenants', (req, res) => {
+app.post('/api/admin/tenants', async (req, res) => {
   try {
     const { id, name } = req.body;
     if (!id) return res.status(400).json({ error: 'ID is required' });
     
-    const configPath = path.join(TENANTS_DIR, `${id}.json`);
-    if (fs.existsSync(configPath)) return res.status(400).json({ error: 'Tenant already exists' });
+    await prisma.tenant.create({
+      data: {
+        id,
+        name: name || id,
+        businessHours: { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] },
+        whatsappNumber: '1234567890',
+        calendarId: 'primary'
+      }
+    });
 
-    const newConfig = {
-      name: name || id,
-      businessHours: { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] },
-      whatsappNumber: '1234567890',
-      calendarId: 'primary'
-    };
-
-    if (!fs.existsSync(TENANTS_DIR)) fs.mkdirSync(TENANTS_DIR);
-    fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
     res.json({ success: true, id });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2002') return res.status(400).json({ error: 'Tenant already exists' });
     res.status(500).json({ error: 'Failed to create tenant' });
   }
 });
 
 // SUPER ADMIN: Update tenant name
-app.patch('/api/admin/tenants/:id', (req, res) => {
+app.patch('/api/admin/tenants/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
-    const configPath = path.join(TENANTS_DIR, `${id}.json`);
-    if (!fs.existsSync(configPath)) return res.status(404).json({ error: 'Tenant not found' });
+    await prisma.tenant.update({
+      where: { id },
+      data: { name }
+    });
 
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    config.name = name;
-    
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update tenant' });
   }
 });
 
-app.post('/api/:tenantId/admin/config', (req, res) => {
+app.post('/api/:tenantId/admin/config', async (req, res) => {
   try {
     const { tenantId } = req.params;
     const newConfig = req.body;
-    const configPath = path.join(TENANTS_DIR, `${tenantId}.json`);
-    
-    if (!fs.existsSync(TENANTS_DIR)) fs.mkdirSync(TENANTS_DIR);
-    fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+
+    await prisma.tenant.upsert({
+      where: { id: tenantId },
+      update: {
+        name: newConfig.name,
+        whatsappNumber: newConfig.whatsappNumber,
+        calendarId: newConfig.calendarId,
+        businessHours: newConfig.businessHours,
+        googleClientEmail: newConfig.googleClientEmail,
+        googlePrivateKey: newConfig.googlePrivateKey
+      },
+      create: {
+        id: tenantId,
+        name: newConfig.name,
+        whatsappNumber: newConfig.whatsappNumber,
+        calendarId: newConfig.calendarId,
+        businessHours: newConfig.businessHours,
+        googleClientEmail: newConfig.googleClientEmail,
+        googlePrivateKey: newConfig.googlePrivateKey
+      }
+    });
+
     res.json({ success: true });
   } catch (error) {
     logger.error('Error saving config', { error, tenantId: req.params.tenantId });
@@ -186,10 +238,11 @@ app.post('/api/:tenantId/admin/config', (req, res) => {
 // Admin Endpoint to List Appointments
 app.get('/api/:tenantId/admin/appointments', async (req, res) => {
   try {
-    const config = getConfig(req.params.tenantId);
-    const events = await calendarService.listUpcomingEvents(config.calendarId, 20);
+    const config = await getConfig(req.params.tenantId);
+    const credentials = config.googleClientEmail ? { clientEmail: config.googleClientEmail, privateKey: config.googlePrivateKey } : undefined;
+    
+    const events = await calendarService.listUpcomingEvents(config.calendarId, 20, credentials);
     const formattedEvents = events.map(event => {
-      // Basic extraction from summary "CitaIA: Service - Name"
       const summary = event.summary || '';
       const parts = summary.replace('CitaIA: ', '').split(' - ');
       const startDate = event.start?.dateTime || event.start?.date || 'Sin fecha';
@@ -215,7 +268,8 @@ app.get('/api/:tenantId/admin/appointments', async (req, res) => {
 app.post('/api/:tenantId/chat', async (req, res) => {
   const { sessionId, message } = req.body;
   const { tenantId } = req.params;
-  const config = getConfig(tenantId);
+  const config = await getConfig(tenantId);
+  const credentials = config.googleClientEmail ? { clientEmail: config.googleClientEmail, privateKey: config.googlePrivateKey } : undefined;
   
   if (!sessions.has(sessionId)) {
     sessions.set(sessionId, { step: 'greeting', data: {} });
@@ -226,7 +280,7 @@ app.post('/api/:tenantId/chat', async (req, res) => {
 
   // 1. Intercept Commands
   if (userMsg.includes('ver horarios') || userMsg.includes('disponibles')) {
-    const slots = await calendarService.getAvailableSlots(config.calendarId);
+    const slots = await calendarService.getAvailableSlots(config.calendarId, credentials);
     if (slots.length > 0) {
       const slotTexts = slots.map(s => `${s.day} a las ${s.start}`);
       return res.json({ 
@@ -259,7 +313,7 @@ app.post('/api/:tenantId/chat', async (req, res) => {
   if (session.step === 'awaiting_name') {
     session.data.name = message;
     session.step = 'awaiting_datetime';
-    const slots = await calendarService.getAvailableSlots(config.calendarId);
+    const slots = await calendarService.getAvailableSlots(config.calendarId, credentials);
     const options = slots.map(s => `${s.day} ${s.start}`);
     return res.json({ 
       response: `Gracias ${message}. ¿Qué día y a qué hora te gustaría venir?\n\nAquí tienes algunos horarios libres:`,
@@ -269,9 +323,9 @@ app.post('/api/:tenantId/chat', async (req, res) => {
   }
 
   if (session.step === 'awaiting_datetime') {
-    const isAvailable = await calendarService.isSlotAvailable(message, config.calendarId);
+    const isAvailable = await calendarService.isSlotAvailable(message, config.calendarId, credentials);
     if (!isAvailable) {
-      const slots = await calendarService.getAvailableSlots(config.calendarId);
+      const slots = await calendarService.getAvailableSlots(config.calendarId, credentials);
       return res.json({ 
         response: `Lo siento, ese horario ya está ocupado. ¿Te gustaría alguno de estos?`,
         options: slots.map(s => `${s.day} ${s.start}`),
@@ -280,8 +334,8 @@ app.post('/api/:tenantId/chat', async (req, res) => {
     }
 
     const parsedDate = calendarService.parseDate(message);
-    if (!isWithinBusinessHours(parsedDate, tenantId)) {
-      const slots = await calendarService.getAvailableSlots(config.calendarId);
+    if (!isWithinBusinessHours(parsedDate, config)) {
+      const slots = await calendarService.getAvailableSlots(config.calendarId, credentials);
       return res.json({ 
         response: `Lo siento, ese horario está fuera de nuestro tiempo de atención. ¿Qué tal uno de estos?`,
         options: slots.map(s => `${s.day} ${s.start}`),
@@ -293,9 +347,21 @@ app.post('/api/:tenantId/chat', async (req, res) => {
     session.step = 'confirmed';
     
     try {
-      await calendarService.createEvent(config.calendarId, session.data.name, session.data.service, message);
+      // 1. Create in Google Calendar
+      await calendarService.createEvent(config.calendarId, session.data.name, session.data.service, message, credentials);
+      
+      // 2. Local Persistence (Analytics/Backup)
+      await prisma.appointment.create({
+        data: {
+          tenantId: tenantId,
+          patientName: session.data.name,
+          service: session.data.service,
+          startTime: parsedDate,
+          status: 'confirmada'
+        }
+      });
     } catch (e) {
-      logger.error("Calendar integration error (skipping)", { error: e, sessionId, tenantId });
+      logger.error("Appointment creation error", { error: e, sessionId, tenantId });
     }
 
     const whatsappNum = config.whatsappNumber;
@@ -324,8 +390,9 @@ app.use((err: any, req: any, res: any, next: any) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Port Setup
+// Startup
 const PORT = process.env.PORT || 3013;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`CitaIA multi-tenant backend running on port ${PORT}`);
+  await migrateJsonToDb();
 });

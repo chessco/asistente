@@ -10,6 +10,12 @@ COPY package*.json ./
 # Install only production dependencies
 RUN npm install --omit=dev
 
+# Copy prisma schema
+COPY prisma ./prisma/
+
+# Generate Prisma Client
+RUN npx prisma generate
+
 # Copy the rest of the application code
 COPY . .
 
