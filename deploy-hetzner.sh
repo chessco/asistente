@@ -36,9 +36,7 @@ if [ ! -d "$BASE_DIR/.git" ]; then
 else
     echo "Updating repository..."
     cd "$BASE_DIR"
-    git fetch --all
-    git reset --hard origin/main
-    git clean -fd
+    git pull origin main
 fi
 
 echo "--- D & E) VERIFY CONFIG FILES ---"
