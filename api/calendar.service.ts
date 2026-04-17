@@ -33,7 +33,11 @@ class CalendarService {
     let privateKey = credentials?.privateKey || process.env.GOOGLE_PRIVATE_KEY;
     
     if (privateKey) {
-      privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+      privateKey = privateKey
+        .replace(/^"|"$/g, '')          // Strip surrounding quotes
+        .split(String.raw`\n`).join('\n') // Convert literal "\n" text to actual newlines
+        .replace(/\\n/g, '\n')          // Convert any leftover \\n
+        .replace(/\r/g, '');            // Strip Windows carriage returns
     }
 
     return new google.auth.JWT({
