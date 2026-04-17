@@ -42,8 +42,9 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
-api/.env
-web/.env
+**/.env
+**/.env.production
+**/.env.deploy
 
 # Backups and Logs
 api/config_backup.json
