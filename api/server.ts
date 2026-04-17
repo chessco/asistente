@@ -120,6 +120,11 @@ const getConfig = async (tenantId: string) => {
   };
 };
 
+// Health Check Endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Public config for frontend
 app.get('/api/:tenantId/config', async (req, res) => {
   const config = await getConfig(req.params.tenantId);
