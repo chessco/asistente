@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: appointment-api-prod
+    container_name: appointment-api
     restart: always
     ports:
       - "3013:3013"
