@@ -12,6 +12,7 @@ import API_BASE_URL from "../api-config";
 import StatCards from "../components/admin/StatCards";
 import AppointmentsList from "../components/admin/AppointmentsList";
 import ConfigTab from "../components/admin/ConfigTab";
+import ServicesTab from "../components/admin/ServicesTab";
 import SuperAdminTab from "../components/admin/SuperAdminTab";
 
 interface Appointment {
@@ -25,7 +26,7 @@ interface Appointment {
 
 export default function AdminPage() {
   const { tenantId = "default" } = useParams();
-  const [activeTab, setActiveTab] = useState<"citas" | "config" | "super">("citas");
+  const [activeTab, setActiveTab] = useState<"citas" | "config" | "services" | "super">("citas");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,6 +48,8 @@ export default function AdminPage() {
     days: [1, 2, 3, 4, 5] 
   });
   const [whatsapp, setWhatsapp] = useState('');
+  const [isPremiumAI, setIsPremiumAI] = useState(false);
+  const [cancelationBuffer, setCancelationBuffer] = useState(15);
   const [saving, setSaving] = useState(false);
 
   const fetchAppointments = async () => {
@@ -72,6 +75,8 @@ export default function AdminPage() {
       setCalendarId(data.calendarId || 'primary');
       setGoogleClientEmail(data.googleClientEmail || '');
       setGooglePrivateKey(data.googlePrivateKey || '');
+      setIsPremiumAI(data.isPremiumAI || false);
+      setCancelationBuffer(data.cancelationBuffer || 15);
     } catch (error) {
       console.error("Error fetching config:", error);
     }
@@ -140,7 +145,9 @@ export default function AdminPage() {
           businessHours: config, 
           whatsappNumber: whatsapp,
           googleClientEmail: googleClientEmail,
-          googlePrivateKey: googlePrivateKey
+          googlePrivateKey: googlePrivateKey,
+          isPremiumAI: isPremiumAI,
+          cancelationBuffer: cancelationBuffer
         })
       });
       if (res.ok) {
@@ -179,8 +186,9 @@ export default function AdminPage() {
             <div className="flex gap-1 bg-surface-container-low p-1.5 rounded-3xl w-fit">
               {[
                 { id: "citas", label: "Citas" },
-                { id: "config", label: "Configuración" },
-                { id: "super", label: "Super Admin" }
+                { id: "services", label: "Servicios" },
+                { id: "config", label: "Horarios" },
+                { id: "super", label: "Panel" }
               ].map(tab => (
                 <button 
                   key={tab.id}
@@ -224,8 +232,14 @@ export default function AdminPage() {
             config={config} setConfig={setConfig}
             googleClientEmail={googleClientEmail} setGoogleClientEmail={setGoogleClientEmail}
             googlePrivateKey={googlePrivateKey} setGooglePrivateKey={setGooglePrivateKey}
+            isPremiumAI={isPremiumAI} setIsPremiumAI={setIsPremiumAI}
+            cancelationBuffer={cancelationBuffer} setCancelationBuffer={setCancelationBuffer}
             onSave={saveConfig} saving={saving}
           />
+        )}
+
+        {activeTab === "services" && (
+          <ServicesTab tenantId={tenantId} />
         )}
 
         {activeTab === "super" && (

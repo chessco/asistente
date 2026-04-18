@@ -110,18 +110,24 @@ export default function LandingPage() {
           
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {/* Featured Item */}
-            <div className="premium-card rounded-4xl p-12 md:col-span-2">
-              <div className="bg-primary/5 text-primary mb-8 flex h-14 w-14 items-center justify-center rounded-2xl">
-                <Clock className="h-7 w-7" />
+            <div className="premium-card rounded-4xl p-12 md:col-span-2 bg-gradient-to-br from-white/80 to-amber-500/5">
+              <div className="bg-amber-500/10 text-amber-600 mb-8 flex h-14 w-14 items-center justify-center rounded-2xl">
+                <Zap className="h-7 w-7" />
               </div>
-              <h3 className="mb-5 text-3xl font-bold">Agenda Inteligente</h3>
-              <p className="text-lg leading-relaxed text-on-surface-variant">
-                Nuestro motor CitaIA procesa el lenguaje natural para encontrar el espacio perfecto en tu calendario, igual que un concierge humano.
-              </p>
-              <div className="mt-10 flex gap-3">
-                <div className="h-1.5 w-16 rounded-full bg-primary italic"></div>
-                <div className="h-1.5 w-8 rounded-full bg-primary/20"></div>
-                <div className="h-1.5 w-8 rounded-full bg-primary/20"></div>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex-1">
+                    <h3 className="mb-5 text-3xl font-bold">IA Premium (Gemini)</h3>
+                    <p className="text-lg leading-relaxed text-on-surface-variant">
+                        Olvídate de los flujos rígidos. Nuestra IA Premium comprende frases completas y lenguaje natural fluido, agendando citas en segundos sin que el paciente tenga que responder paso a paso.
+                    </p>
+                </div>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-6 flex flex-col items-center">
+                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Estatus IA</span>
+                    <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
+                        <span className="text-sm font-bold text-amber-700">RED NEURAL ACTIVA</span>
+                    </div>
+                </div>
               </div>
             </div>
 
@@ -135,13 +141,13 @@ export default function LandingPage() {
             </div>
 
             {/* Third Item */}
-            <div className="premium-card rounded-4xl p-12">
-              <div className="bg-emerald-50 text-emerald-600 mb-8 flex h-14 w-14 items-center justify-center rounded-2xl">
-                <Shield className="h-7 w-7" />
+            <div className="premium-card rounded-4xl p-12 bg-slate-50 border-slate-200">
+              <div className="bg-slate-950 text-white mb-8 flex h-14 w-14 items-center justify-center rounded-2xl shadow-xl">
+                <Zap className="h-7 w-7 text-primary-container" />
               </div>
-              <h3 className="mb-4 text-2xl font-bold">Privacidad Total</h3>
+              <h3 className="mb-4 text-2xl font-bold">Pagos & Depósitos</h3>
               <p className="text-on-surface-variant">
-                Datos encriptados de extremo a extremo, cumpliendo con los estándares de salud más exigentes.
+                Reduce el ausentismo solicitando pagos o depósitos de garantía directamente en el chat antes de confirmar la cita.
               </p>
             </div>
 

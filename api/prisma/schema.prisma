@@ -18,10 +18,25 @@ model Tenant {
   businessHours     Json     // { start, end, days }
   googleClientEmail String?
   googlePrivateKey  String?  @db.Text
+  isPremiumAI       Boolean  @default(false)
+  cancelationBuffer Int      @default(15)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   appointments      Appointment[]
+  services          Service[]
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  name        String
+  duration    Int      @default(60)
+  price       Float?
+  isActive    Boolean  @default(true)
+
+  @@index([tenantId])
 }
 
 model Appointment {
@@ -30,8 +45,12 @@ model Appointment {
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   service     String
   patientName String
+  googleEventId String?
   startTime   DateTime
-  status      String   @default("confirmada")
+  status        String   @default("confirmada")
+  paymentStatus String   @default("pendiente") // pendiente, pagada, fallida
+  amount        Float?
+  reminderSent  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

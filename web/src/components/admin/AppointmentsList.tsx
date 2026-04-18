@@ -8,6 +8,8 @@ interface Appointment {
   startTime: string;
   htmlLink: string;
   status: string;
+  paymentStatus?: string;
+  amount?: number;
 }
 
 interface Props {
@@ -46,8 +48,9 @@ export default function AppointmentsList({ appointments, searchTerm, setSearchTe
               <th className="px-8 py-5">Paciente</th>
               <th className="px-8 py-5">Servicio</th>
               <th className="px-8 py-5">Fecha & Hora</th>
-              <th className="px-8 py-5">Estado</th>
-              <th className="px-8 py-5">Acción</th>
+              <th className="px-8 py-5 text-center">Estado</th>
+              <th className="px-8 py-5 text-center">Pago</th>
+              <th className="px-8 py-5 text-right">Acción</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
@@ -82,14 +85,31 @@ export default function AppointmentsList({ appointments, searchTerm, setSearchTe
                     </p>
                   </div>
                 </td>
-                <td className="px-8 py-6">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase text-emerald-600">
+                <td className="px-8 py-6 text-center">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase ${
+                    app.status === 'confirmada' ? 'bg-emerald-500/10 text-emerald-600' :
+                    app.status === 'cancelada' ? 'bg-red-500/10 text-red-600' :
+                    'bg-amber-500/10 text-amber-600'
+                  }`}>
                     {app.status}
                   </span>
                 </td>
-                <td className="px-8 py-6">
-                  <a href={app.htmlLink} target="_blank" rel="noreferrer" className="text-on-surface-variant hover:text-primary transition-colors">
-                    <ExternalLink size={18} />
+                <td className="px-8 py-6 text-center">
+                    <div className="flex flex-col items-center">
+                        <span className={`text-[10px] font-black tracking-tighter ${
+                            app.paymentStatus === 'pagada' ? 'text-emerald-600' : 
+                            (app.paymentStatus === 'n/a' ? 'text-on-surface-variant/30' : 'text-amber-600')
+                        }`}>
+                            {app.paymentStatus === 'pagada' ? 'PAGADO' : (app.paymentStatus === 'n/a' ? 'N/A' : 'PENDIENTE')}
+                        </span>
+                        {app.amount ? (
+                            <span className="text-[10px] font-bold opacity-30 leading-none">${app.amount}</span>
+                        ) : null}
+                    </div>
+                </td>
+                <td className="px-8 py-6 text-right">
+                  <a href={app.htmlLink} target="_blank" rel="noreferrer" className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary transition-all hover:bg-white hover:shadow-xl">
+                    <ExternalLink size={16} />
                   </a>
                 </td>
               </motion.tr>

@@ -16,12 +16,14 @@ async function sendRealTest() {
     
     console.log('\n✅ ¡Cita enviada!');
     console.log('🔗 Link al Calendario:', event.htmlLink);
-  } catch (error) {
+  } catch (error: any) {
     console.error('\n❌ ERROR DETALLADO:');
     if (error.response && error.response.data) {
       console.error(JSON.stringify(error.response.data, null, 2));
-    } else {
+    } else if (error instanceof Error) {
       console.error(error.message);
+    } else {
+      console.error(error);
     }
   }
 }

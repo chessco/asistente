@@ -107,6 +107,26 @@ export default function ChatPage() {
     return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
   };
 
+  const renderContent = (content: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return content.split(urlRegex).map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline break-all hover:text-blue-800"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="flex flex-col h-screen wa-background overflow-hidden">
       {/* WhatsApp Header */}
@@ -154,7 +174,7 @@ export default function ChatPage() {
             >
               <div className={msg.type === "bot" ? "wa-bubble-bot" : "wa-bubble-user"}>
                 <div className="text-[14.5px] leading-relaxed pr-8">
-                  {typeof msg.content === 'string' ? msg.content : msg.content}
+                  {typeof msg.content === 'string' ? renderContent(msg.content) : msg.content}
                 </div>
                 <span className="absolute bottom-1 right-2 text-[10px] text-[#667781] flex items-center gap-1">
                   {msg.timestamp}
@@ -201,30 +221,36 @@ export default function ChatPage() {
           </motion.div>
         )}
 
-        {/* Confirmation Card */}
-        {serverStep === 'confirmed' && !isTyping && (
+        {/* Visual Feedback Card */}
+        {(serverStep === 'confirmed' || serverStep === 'canceled') && !isTyping && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-center py-4"
           >
             <div className="bg-white p-6 rounded-2xl shadow-xl border border-emerald-100 max-w-sm text-center">
-              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="h-8 w-8" />
+              <div className={`w-14 h-14 ${serverStep === 'canceled' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                {serverStep === 'canceled' ? <CheckCircle2 className="h-8 w-8 text-red-500" /> : <CheckCircle2 className="h-8 w-8" />}
               </div>
-              <h3 className="text-lg font-bold text-[#111b21] mb-2">¡Cita Confirmada!</h3>
+              <h3 className="text-lg font-bold text-[#111b21] mb-2">
+                {serverStep === 'canceled' ? '¡Cita Cancelada!' : '¡Cita Confirmada!'}
+              </h3>
               <p className="text-sm text-[#667781] mb-6">
-                Tu cita para <strong>{bookingData.service}</strong> ha sido registrada en el sistema.
+                {serverStep === 'canceled' 
+                  ? `Tu cita ha sido eliminada correctamente del calendario.`
+                  : `Tu reserva para ${bookingData.service || 'el servicio'} ha sido registrada en el sistema.`}
               </p>
-              <a 
-                href={generateWhatsAppUrl()}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white font-bold py-3 px-6 rounded-lg w-full transition-all hover:brightness-105 active:scale-95 shadow-lg shadow-emerald-500/20"
-              >
-                <MessageSquare className="h-5 w-5" />
-                Abrir WhatsApp
-              </a>
+              {serverStep !== 'canceled' && (
+                <a 
+                  href={generateWhatsAppUrl()}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white font-bold py-3 px-6 rounded-lg w-full transition-all hover:brightness-105 active:scale-95 shadow-lg shadow-emerald-500/20"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  Abrir WhatsApp
+                </a>
+              )}
             </div>
           </motion.div>
         )}

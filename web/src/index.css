@@ -47,6 +47,7 @@
 
 .wa-bubble-user {
   @apply relative bg-wa-user-bubble text-on-surface rounded-lg rounded-tr-none px-3 py-2 shadow-sm max-w-[85%];
+  white-space: pre-wrap;
 }
 
 .wa-bubble-user::after {
@@ -62,6 +63,7 @@
 
 .wa-bubble-bot {
   @apply relative bg-wa-bot-bubble text-on-surface rounded-lg rounded-tl-none px-3 py-2 shadow-sm max-w-[85%];
+  white-space: pre-wrap;
 }
 
 .wa-bubble-bot::after {

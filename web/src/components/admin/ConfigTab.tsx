@@ -14,6 +14,10 @@ interface Props {
   setGoogleClientEmail: (val: string) => void;
   googlePrivateKey: string;
   setGooglePrivateKey: (val: string) => void;
+  isPremiumAI: boolean;
+  setIsPremiumAI: (val: boolean) => void;
+  cancelationBuffer: number;
+  setCancelationBuffer: (val: number) => void;
   onSave: () => void;
   saving: boolean;
 }
@@ -25,6 +29,8 @@ export default function ConfigTab({
   config, setConfig,
   googleClientEmail, setGoogleClientEmail,
   googlePrivateKey, setGooglePrivateKey,
+  isPremiumAI, setIsPremiumAI,
+  cancelationBuffer, setCancelationBuffer,
   onSave, saving
 }: Props) {
 
@@ -140,6 +146,36 @@ export default function ConfigTab({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-8 rounded-[2rem] border border-amber-500/20 flex items-center justify-between gap-6">
+            <div className="space-y-1">
+                <h3 className="text-lg font-black text-amber-600">IA Premium (Beta)</h3>
+                <p className="text-xs font-bold text-amber-600/60 uppercase tracking-tighter">Procesamiento fluido de lenguaje natural con Google Gemini</p>
+            </div>
+            <button 
+                onClick={() => setIsPremiumAI(!isPremiumAI)}
+                className={`relative inline-flex h-10 w-20 items-center rounded-full transition-colors ${isPremiumAI ? 'bg-amber-500' : 'bg-surface-container-highest'}`}
+            >
+                <span className={`inline-block h-8 w-8 transform rounded-full bg-white transition-transform ${isPremiumAI ? 'translate-x-11' : 'translate-x-1'}`} />
+            </button>
+        </div>
+
+        <div className="bg-surface-container-low p-6 rounded-[2rem] border border-on-surface-variant/10 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+                <label className="text-sm font-black uppercase tracking-widest text-on-surface-variant">Margen de Cortesía (minutos)</label>
+                <span className="bg-primary/20 text-primary px-3 py-1 rounded-lg text-sm font-black">{cancelationBuffer} min</span>
+            </div>
+            <input 
+                type="range" 
+                min="0" 
+                max="120" 
+                step="5"
+                value={cancelationBuffer}
+                onChange={(e) => setCancelationBuffer(parseInt(e.target.value))}
+                className="w-full accent-primary h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer"
+            />
+            <p className="text-[10px] uppercase font-bold text-on-surface-variant/50">Permite reprogramar citas que comenzaron hace máximo {cancelationBuffer} minutos.</p>
         </div>
 
         <button 
