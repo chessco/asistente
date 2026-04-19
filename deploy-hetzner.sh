@@ -56,6 +56,11 @@ docker exec -i "$MYSQL_CONTAINER" mysql -uroot -p$LUXURY_PASS -e "CREATE DATABAS
 
 echo "--- G) DEPLOY ---"
 cd "$API_DIR"
+
+# Sincronizar esquema de base de datos (vital para nuevos campos)
+echo "Sincronizando esquema de base de datos..."
+docker compose -f docker-compose.prod.yml run --rm api npx prisma db push --skip-generate
+
 docker compose -f docker-compose.prod.yml up -d --build
 
 echo "--- H) VALIDATION ---"
