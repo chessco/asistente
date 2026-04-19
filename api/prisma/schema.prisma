@@ -20,6 +20,7 @@ model Tenant {
   googlePrivateKey  String?  @db.Text
   isPremiumAI       Boolean  @default(false)
   cancelationBuffer Int      @default(15)
+  slotBuffer        Int      @default(0) // Minutes between appointments
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

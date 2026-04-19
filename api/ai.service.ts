@@ -10,46 +10,61 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 export interface ExtractedInfo {
   name?: string;
   service?: string;
-  datetime?: string; // Should be in a parseable format
+  datetime?: string;
   intent: "book" | "cancel" | "reschedule" | "query" | "other";
+  answer?: string; // For direct responses to queries
 }
 
 class AIService {
   /**
    * Extracts entities and intent from a message using Gemini
+   * Now with business context to answer FAQs
    */
-  async extractEntities(message: string, availableServices: string[]): Promise<ExtractedInfo> {
+  async extractEntities(message: string, availableServices: string[], tenantConfig?: any): Promise<ExtractedInfo> {
     if (!process.env.GEMINI_API_KEY) {
       logger.warn("GEMINI_API_KEY not found. Falling back to basic intent detection.");
       return this.fallbackExtraction(message);
     }
 
     try {
+      const businessContext = tenantConfig ? `
+        Información del Negocio:
+        - Nombre: ${tenantConfig.name}
+        - WhatsApp: ${tenantConfig.whatsappNumber}
+        - Horarios: ${tenantConfig.businessHours.start} a ${tenantConfig.businessHours.end}
+        - Días de atención: ${tenantConfig.businessHours.days.map((d: number) => ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][d]).join(', ')}
+        - Servicios: ${availableServices.join(", ")}
+      ` : "";
+
       const prompt = `
-        Eres un asistente de extracción de datos para una clínica.
-        Analiza el siguiente mensaje y extrae la información en formato JSON.
+        Eres un asistente de recepción premium llamado CitaIA para un negocio.
+        Tu objetivo es ayudar a agendar citas o responder dudas sobre el negocio.
         
-        Servicios disponibles: ${availableServices.join(", ")}
+        ${businessContext}
         Fecha/Hora actual: ${new Date().toLocaleString()}
+
+        Si el usuario hace una pregunta sobre el negocio (horarios, ubicación, servicios, contacto), genera una respuesta amigable y profesional en el campo "answer".
+        Si el usuario quiere agendar, extraer los datos.
 
         Mensaje: "${message}"
 
         JSON schema (devuelve solo el JSON):
         {
-          "name": string (nombre del paciente si se menciona),
-          "service": string (debe coincidir con uno de los servicios disponibles o ser el más cercano),
-          "datetime": string (fecha y hora solicitada en formato ISO si es posible determinarla),
-          "intent": "book" | "cancel" | "reschedule" | "query" | "other"
+          "name": string (solo si el usuario se presenta),
+          "service": string (debe coincidir exactamente con uno de los servicios disponibles si se menciona),
+          "datetime": string (si se menciona una fecha/hora, ponla en texto natural ej: "lunes 10am"),
+          "intent": "book" | "cancel" | "reschedule" | "query" | "other",
+          "answer": string (solo si es una pregunta que puedes responder con la información del negocio, de lo contrario null)
         }
       `;
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const text = response.text();
+      let text = response.text();
       
       // Basic JSON cleaning
-      const cleaned = text.replace(/```json|```/gi, "").trim();
-      return JSON.parse(cleaned);
+      text = text.replace(/```json|```/gi, "").trim();
+      return JSON.parse(text);
     } catch (error) {
       logger.error("Error in AI extraction:", error);
       return this.fallbackExtraction(message);

@@ -83,11 +83,11 @@ class CalendarService {
       }
     }
 
+    let searchableTime = lower;
     // 3. Handle specific Day Number (e.g., "20", "21")
     const dayMatch = lower.match(/\b(\d{1,2})\b/);
     if (dayMatch && !lower.includes(':') && !lower.includes(' a.m.') && !lower.includes(' p.m.')) {
        // Only if it's a standalone number or part of a date string that we can identify
-       // But wait, the suggested slots are like "lun 20 09:00 a.m."
     }
     // Improved logic for "lun 20 09:00 a.m.":
     const fullMatch = lower.match(/(?:lun|mar|mie|jue|vie|sab|dom)\s+(\d{1,2})/);
@@ -96,10 +96,13 @@ class CalendarService {
       target.setDate(dayNum);
       // Handle month rollover if necessary (simple for now)
       if (dayNum < now.getDate()) target.setMonth(now.getMonth() + 1);
+      
+      // FIX: Remove the date part so it doesn't collide with time parsing
+      searchableTime = lower.replace(fullMatch[0], '');
     }
 
     // 4. Extract Time (Hour:Minutes AM/PM)
-    const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/);
+    const timeMatch = searchableTime.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/);
     if (timeMatch) {
       let hours = parseInt(timeMatch[1]);
       const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;

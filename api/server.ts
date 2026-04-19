@@ -125,10 +125,15 @@ app.post('/api/:tenantId/chat', async (req, res) => {
     if (config.isPremiumAI) {
       const services = await prisma.service.findMany({ where: { tenantId } });
       const serviceNames = services.map((s: any) => s.name);
-      const extracted = await aiService.extractEntities(message, serviceNames);
+      const extracted = await aiService.extractEntities(message, serviceNames, config);
 
       if (extracted.name) session.data.name = extracted.name;
       if (extracted.service) session.data.service = extracted.service;
+
+      // New: If AI has a direct answer for a query, use it!
+      if (extracted.intent === 'query' && extracted.answer) {
+          return res.json({ response: extracted.answer });
+      }
 
       if (extracted.intent === 'cancel') {
           session.step = 'awaiting_cancel_confirmation';
